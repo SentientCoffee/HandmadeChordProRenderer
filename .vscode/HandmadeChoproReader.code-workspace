@@ -1,0 +1,18 @@
+{
+    "folders": [
+        {
+            "path": "..",
+            "name": "ChoproReader"
+        }
+    ],
+    "launch": {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Flutter Run",
+                "request": "launch",
+                "type": "dart"
+            }
+        ]
+    },
+}
