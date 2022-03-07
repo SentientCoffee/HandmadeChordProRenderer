@@ -46,60 +46,63 @@ class _SongListPageState extends State<SongListPage> {
         }
 
         return Slidable(
-          actionPane: const SlidableDrawerActionPane(),
-          secondaryActions: [
-            IconSlideAction(
-              icon: Icons.delete,
-              color: Colors.red,
-              onTap: () {
-                //
-                // @Improvement: There could be a faster way to do this, but we want to keep things simple
-                // for now. Maybe use the index to the master song list as an id for the song itself?
-                //
-                // @Note: We are not caching the MasterSongList.songList call here because otherwise
-                // we would only be modifying the local cached variable instead of the actual master
-                // song list like we want.
-                //
-                var i = MasterSongList.songList.indexWhere((s) => s.title == widget.songs[index].title);
-                var r = MasterSongList.songList.removeAt(i);
-                setState(() {
-                  widget.songs.removeAt(index);
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text("Deleted ${r.title} from song list"),
-                    duration: const Duration(seconds: 2),
-                  ));
-                });
-              },
-            ),
-            IconSlideAction(
-              icon: Icons.edit,
-              color: Colors.blue,
-              onTap: () {
-                Navigator.pushNamed(
-                  context,
-                  "/song_info_editor",
-                  arguments: widget.songs[index],
-                ).then((newInfo) {
-                  if (newInfo == null) return;
-
-                  var i = MasterSongList.songList.indexWhere((s) {
-                    //
-                    // @Improvement: There could be a faster way to do this, but we want to keep things simple
-                    // for now. Maybe use the index to the master song list as an id for the song itself?
-                    //
-                    var old = widget.songs[index];
-                    var titleMatch = s.title == old.title;
-                    var artistMatch = s.artist == old.artist;
-                    return titleMatch && artistMatch;
-                  });
-
+          endActionPane: ActionPane(
+            motion: const DrawerMotion(),
+            extentRatio: 0.4,
+            children: [
+              SlidableAction(
+                icon: Icons.delete,
+                backgroundColor: Colors.red,
+                onPressed: (context) {
+                  //
+                  // @Improvement: There could be a faster way to do this, but we want to keep things simple
+                  // for now. Maybe use the index to the master song list as an id for the song itself?
+                  //
+                  // @Note: We are not caching the MasterSongList.songList call here because otherwise
+                  // we would only be modifying the local cached variable instead of the actual master
+                  // song list like we want.
+                  //
+                  var i = MasterSongList.songList.indexWhere((s) => s.title == widget.songs[index].title);
+                  var r = MasterSongList.songList.removeAt(i);
                   setState(() {
-                    MasterSongList.songList[i] = newInfo as SongInfo;
+                    widget.songs.removeAt(index);
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text("Deleted ${r.title} from song list"),
+                      duration: const Duration(seconds: 2),
+                    ));
                   });
-                });
-              },
-            ),
-          ],
+                },
+              ),
+              SlidableAction(
+                icon: Icons.edit,
+                backgroundColor: Colors.blue,
+                onPressed: (context) {
+                  Navigator.pushNamed(
+                    context,
+                    "/song_info_editor",
+                    arguments: widget.songs[index],
+                  ).then((newInfo) {
+                    if (newInfo == null) return;
+
+                    var i = MasterSongList.songList.indexWhere((s) {
+                      //
+                      // @Improvement: There could be a faster way to do this, but we want to keep things simple
+                      // for now. Maybe use the index to the master song list as an id for the song itself?
+                      //
+                      var old = widget.songs[index];
+                      var titleMatch = s.title == old.title;
+                      var artistMatch = s.artist == old.artist;
+                      return titleMatch && artistMatch;
+                    });
+
+                    setState(() {
+                      MasterSongList.songList[i] = newInfo as SongInfo;
+                    });
+                  });
+                },
+              ),
+            ],
+          ),
           child: GestureDetector(
             child: SongTile(
               song: widget.songs[index],
