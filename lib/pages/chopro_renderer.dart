@@ -78,14 +78,81 @@ class _ChordProRendererPageState extends State<ChordProRendererPage> {
                 style: Theme.of(context).textTheme.headline6,
                 textAlign: TextAlign.center,
               ),
-              SizedBox(
-                width: MediaQuery.of(context).size.width,
-                child: Text(song.lyrics),
+              Container(
+                padding: const EdgeInsets.only(top: 20.0),
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _preProcessLyrics(song.lyrics),
+                  ),
+                ),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  List<Widget> _preProcessLyrics(String lyrics) {
+    const commentSequence = "{c:";
+    const socSequence = "{soc}";
+    const eocSequence = "{eoc}";
+    //
+    // @Robustness: Improve this regex
+    // Current only supports (brackets mean optional):
+    // - A[m][7]
+    //
+    var chordRegex = RegExp(r"\[[A-G]m?7?\S*\]");
+
+    var defaultTextStyle = const TextStyle(fontFamily: "FiraCode", fontSize: 12);
+    var widgets = <Widget>[];
+
+    var lines = lyrics.split('\n');
+    for (var line in lines) {
+      // @Robustness: maybe we need to check for comments in the middle of lines?
+      if (line.startsWith(commentSequence)) {
+        var endBracket = line.indexOf('}');
+        line = line.substring(commentSequence.length, endBracket);
+        widgets.add(Text(
+          line,
+          style: const TextStyle(fontFamily: "FiraCode", fontSize: 12, color: Colors.blue),
+        ));
+      } else if (line.startsWith(socSequence)) {
+        // @Incomplete
+      } else if (line.startsWith(eocSequence)) {
+        // @Incomplete
+      } else {
+        var chords = <int, String>{};
+        var l = line;
+        while (l.contains(chordRegex)) {
+          var chordIndex = l.indexOf(chordRegex, chords.keys.isEmpty ? 0 : chords.keys.last + 1);
+          var chordString = l.substring(chordIndex + 1, l.indexOf(']', chordIndex + 1));
+          chords.addAll(<int, String>{
+            chordIndex: chordString,
+          });
+          l = l.replaceFirst(chordRegex, '');
+        }
+
+        var spacedChords = "";
+
+        for (var i in chords.keys) {
+          var c = chords[i]!;
+          spacedChords = spacedChords.padRight(i, ' ');
+          spacedChords += c;
+        }
+        widgets.add(Text(
+          spacedChords,
+          style: defaultTextStyle.merge(const TextStyle(color: Colors.red)),
+        ));
+        widgets.add(Text(
+          l,
+          style: defaultTextStyle,
+        ));
+      }
+    }
+
+    return widgets;
   }
 }
