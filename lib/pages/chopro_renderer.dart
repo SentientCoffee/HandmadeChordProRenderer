@@ -109,30 +109,51 @@ class _ChordProRendererPageState extends State<ChordProRendererPage> {
     var defaultTextStyle = const TextStyle(fontFamily: "FiraCode", fontSize: 12);
     var widgets = <Widget>[];
 
+    var inChorus = false;
+    var surroundedWidgets = <Widget>[];
+
     var lines = lyrics.split('\n');
     for (var line in lines) {
-      // @Robustness: maybe we need to check for comments in the middle of lines?
       if (line.startsWith(commentSequence)) {
+        // @Robustness: maybe check in the middle of lines?
         var endBracket = line.indexOf('}');
         line = line.substring(commentSequence.length, endBracket);
         widgets.add(Text(
           line,
-          style: const TextStyle(fontFamily: "FiraCode", fontSize: 12, color: Colors.blue),
+          style: defaultTextStyle.merge(const TextStyle(color: Colors.blue)),
         ));
       } else if (line.startsWith(socSequence)) {
-        // @Incomplete
+        // @Robustness: maybe check in the middle of lines?
+        inChorus = true;
       } else if (line.startsWith(eocSequence)) {
-        // @Incomplete
+        // @Robustness: maybe check in the middle of lines?
+        inChorus = false;
+        widgets.add(Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Chorus",
+              style: defaultTextStyle.merge(TextStyle(color: Colors.blue[700])),
+            ),
+            Container(
+              color: Colors.grey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: List.from(surroundedWidgets),
+              ),
+            ),
+          ],
+        ));
+        surroundedWidgets.clear();
       } else {
         var chords = <int, String>{};
-        var l = line;
-        while (l.contains(chordRegex)) {
-          var chordIndex = l.indexOf(chordRegex, chords.keys.isEmpty ? 0 : chords.keys.last + 1);
-          var chordString = l.substring(chordIndex + 1, l.indexOf(']', chordIndex + 1));
+        while (line.contains(chordRegex)) {
+          var chordIndex = line.indexOf(chordRegex, chords.keys.isEmpty ? 0 : chords.keys.last + 1);
+          var chordString = line.substring(chordIndex + 1, line.indexOf(']', chordIndex + 1));
           chords.addAll(<int, String>{
             chordIndex: chordString,
           });
-          l = l.replaceFirst(chordRegex, '');
+          line = line.replaceFirst(chordRegex, '');
         }
 
         var spacedChords = "";
@@ -142,17 +163,34 @@ class _ChordProRendererPageState extends State<ChordProRendererPage> {
           spacedChords = spacedChords.padRight(i, ' ');
           spacedChords += c;
         }
-        widgets.add(Text(
-          spacedChords,
-          style: defaultTextStyle.merge(const TextStyle(color: Colors.red)),
-        ));
-        widgets.add(Text(
-          l,
-          style: defaultTextStyle,
-        ));
+
+        _makeChords(String text) => Text(
+              text,
+              style: defaultTextStyle.merge(const TextStyle(color: Colors.red)),
+              textWidthBasis: TextWidthBasis.parent,
+              softWrap: false,
+            );
+
+        _makeLyrics(String text) => Text(
+              text,
+              style: defaultTextStyle,
+              textWidthBasis: TextWidthBasis.parent,
+              softWrap: false,
+            );
+
+        var c = _makeChords(spacedChords);
+        var l = _makeLyrics(line.trim());
+        if (inChorus) {
+          surroundedWidgets.addAll([c, l]);
+        } else {
+          widgets.addAll([c, l]);
+        }
       }
     }
 
-    return widgets;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
+    );
   }
 }
