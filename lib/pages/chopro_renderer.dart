@@ -63,42 +63,42 @@ class _ChordProRendererPageState extends State<ChordProRendererPage> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(10.0),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                song.title,
-                style: Theme.of(context).textTheme.headline4,
-                textAlign: TextAlign.center,
-              ),
-              Text(
-                song.artist,
-                style: Theme.of(context).textTheme.headline6,
-                textAlign: TextAlign.center,
-              ),
-              Container(
-                padding: const EdgeInsets.only(top: 20.0),
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _preProcessLyrics(song.lyrics),
-                  ),
+        child: LayoutBuilder(
+          builder: (ctx, constraints) => SizedBox(
+            width: constraints.maxWidth,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  song.title,
+                  style: Theme.of(ctx).textTheme.headline4,
+                  textAlign: TextAlign.center,
                 ),
-              ),
-            ],
+                Text(
+                  song.artist,
+                  style: Theme.of(ctx).textTheme.headline6,
+                  textAlign: TextAlign.center,
+                ),
+                Container(
+                  padding: const EdgeInsets.only(top: 20.0),
+                  child: _preProcessLyrics(song.lyrics, ctx, constraints),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  List<Widget> _preProcessLyrics(String lyrics) {
+  _preProcessLyrics(String lyrics, BuildContext context, BoxConstraints constraints) {
     const commentSequence = "{c:";
     const socSequence = "{soc}";
     const eocSequence = "{eoc}";
+
+    const defaultTextStyle = TextStyle(fontFamily: "FiraCode", fontSize: 12);
+
     //
     // @Robustness: Improve this regex
     // Current only supports (brackets mean optional):
@@ -106,11 +106,11 @@ class _ChordProRendererPageState extends State<ChordProRendererPage> {
     //
     var chordRegex = RegExp(r"\[[A-G]m?7?\S*\]");
 
-    var defaultTextStyle = const TextStyle(fontFamily: "FiraCode", fontSize: 12);
     var widgets = <Widget>[];
-
-    var inChorus = false;
     var surroundedWidgets = <Widget>[];
+    var inChorus = false;
+
+    var maxSize = Size(constraints.maxWidth, constraints.maxHeight);
 
     var lines = lyrics.split('\n');
     for (var line in lines) {
@@ -138,7 +138,7 @@ class _ChordProRendererPageState extends State<ChordProRendererPage> {
             Container(
               color: Colors.grey,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: List.from(surroundedWidgets),
               ),
             ),
@@ -146,6 +146,29 @@ class _ChordProRendererPageState extends State<ChordProRendererPage> {
         ));
         surroundedWidgets.clear();
       } else {
+        _makeChords(String text) => Text(
+              text,
+              style: defaultTextStyle.merge(const TextStyle(color: Colors.red)),
+              textWidthBasis: TextWidthBasis.parent,
+              softWrap: false,
+            );
+
+        _makeLyrics(String text) => Text(
+              text,
+              style: defaultTextStyle,
+              textWidthBasis: TextWidthBasis.parent,
+              softWrap: false,
+            );
+
+        _getTextSize(Text text) {
+          final TextPainter textPainter = TextPainter(
+            text: TextSpan(text: text.data, style: text.style),
+            maxLines: 1,
+            textDirection: TextDirection.ltr,
+          )..layout();
+          return textPainter.size;
+        }
+
         var chords = <int, String>{};
         while (line.contains(chordRegex)) {
           var chordIndex = line.indexOf(chordRegex, chords.keys.isEmpty ? 0 : chords.keys.last + 1);
@@ -164,26 +187,58 @@ class _ChordProRendererPageState extends State<ChordProRendererPage> {
           spacedChords += c;
         }
 
-        _makeChords(String text) => Text(
-              text,
-              style: defaultTextStyle.merge(const TextStyle(color: Colors.red)),
-              textWidthBasis: TextWidthBasis.parent,
-              softWrap: false,
-            );
+        var chords1 = spacedChords;
+        var line1 = line.trim();
+        var chords2 = "", line2 = "";
 
-        _makeLyrics(String text) => Text(
-              text,
-              style: defaultTextStyle,
-              textWidthBasis: TextWidthBasis.parent,
-              softWrap: false,
-            );
+        var c1 = _makeChords(chords1);
+        var l1 = _makeLyrics(line1);
+        Text? c2, l2;
 
-        var c = _makeChords(spacedChords);
-        var l = _makeLyrics(line.trim());
-        if (inChorus) {
-          surroundedWidgets.addAll([c, l]);
+        while (maxSize.width - _getTextSize(l1).width <= 10.0) {
+          var lastSpace = line1.lastIndexOf(' ');
+          line2 = line2.replaceRange(0, 0, line1.substring(lastSpace)); // @Note: Basically a string.insert(0, string) but dart doesn't have that for some reason
+          line1 = line1.substring(0, lastSpace);
+          l1 = _makeLyrics(line1);
+          l2 = _makeLyrics(line2.trim());
+        }
+
+        var i = 0;
+        if (l2 != null) {
+          while (_getTextSize(c1).width > _getTextSize(l1).width) {
+            chords2 = chords2.replaceRange(0, 0, chords1.substring(chords1.length - 2));
+            chords1 = chords1.substring(0, chords1.length - 2);
+            c1 = _makeChords(chords1);
+            c2 = _makeChords(chords2);
+
+            if (++i >= 50) break;
+          }
+
+          if (c2 != null && c2.data![0] == ' ') {
+            // @Note: Remove leading space because it got replaced in text wrapping
+            c2 = _makeChords(c2.data!.substring(1));
+          } else {
+            // @Note: Add empty line to maintain consistent spacing with the lyrics
+            c2 = _makeChords("");
+          }
         } else {
-          widgets.addAll([c, l]);
+          while (maxSize.width - _getTextSize(c1).width <= 0.0) {
+            var lastChord = chords1.trimRight().lastIndexOf(' ') + 1;
+            chords1 = chords1.substring(0, lastChord - 1) + chords1.substring(lastChord);
+            c1 = _makeChords(chords1);
+
+            if (++i >= 50) break;
+          }
+        }
+
+        var w = [c1, l1];
+        if (c2 != null) w.add(c2);
+        if (l2 != null) w.add(l2);
+
+        if (inChorus) {
+          surroundedWidgets.addAll(w);
+        } else {
+          widgets.addAll(w);
         }
       }
     }

@@ -1,8 +1,12 @@
 {
     "folders": [
         {
+          "path": "../lib",
+          "name": "Source"
+        },
+        {
             "path": "..",
-            "name": "ChoproReader"
+            "name": "Root"
         }
     ],
     "launch": {
@@ -11,7 +15,8 @@
             {
                 "name": "Flutter Run",
                 "request": "launch",
-                "type": "dart"
+                "type": "dart",
+                "cwd": "${workspaceFolder:Root}"
             }
         ]
     },
